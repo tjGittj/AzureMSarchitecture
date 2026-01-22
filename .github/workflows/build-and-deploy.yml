@@ -1,0 +1,79 @@
+
+name: build-and-deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/**"
+      - ".github/workflows/**"
+
+env:
+  AZURE_RESOURCE_GROUP: rg-micro-dev
+  AZURE_REGION: southindia
+  ACR_NAME: REPLACE_WITH_ACR
+
+jobs:
+  build_deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: "user-svc",      folder: "src/user-svc",      dockerfile: "src/user-svc/Dockerfile",      app: "app-user-dev" }
+          - { name: "order-svc",     folder: "src/order-svc",     dockerfile: "src/order-svc/Dockerfile",     app: "app-order-dev" }
+          - { name: "inventory-svc", folder: "src/inventory-svc", dockerfile: "src/inventory-svc/Dockerfile", app: "app-inventory-dev" }
+          - { name: "payment-svc",   folder: "src/payment-svc",   dockerfile: "src/payment-svc/Dockerfile",   app: "app-payment-dev" }
+          - { name: "notify-svc",    folder: "src/notify-svc",    dockerfile: "src/notify-svc/Dockerfile",    app: "app-notify-dev" }
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+
+      - name: Build & Push ${{ matrix.service.name }}
+        run: |
+          IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service.name }}:${{ github.sha }}"
+          docker build -t "$IMAGE" -f "${{ matrix.service.dockerfile }}" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Ensure staging slot
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp deployment slot create               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging || true
+
+      - name: Configure container on staging
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp config container set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --docker-custom-image-name "${{ env.IMAGE }}"               --docker-registry-server-url "https://${{ env.ACR_NAME }}.azurecr.io"
+            az webapp config appsettings set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --settings WEBSITES_PORT=8080 USE_AZURE_SERVICE_BUS=true SERVICEBUS_TOPIC=order-events
+
+      - name: Warmup & health check
+        run: |
+          for i in {1..30}; do
+            curl -fsS "https://${{ matrix.service.app }}-staging.azurewebsites.net/healthz" && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: Swap
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp deployment slot swap               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging --target-slot production

@@ -1,0 +1,43 @@
+
+version: "3.9"
+services:
+  user-svc:
+    build:
+      context: .
+      dockerfile: src/user-svc/Dockerfile
+    ports: ["8081:8080"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      USE_AZURE_SERVICE_BUS: "false"
+  order-svc:
+    build:
+      context: .
+      dockerfile: src/order-svc/Dockerfile
+    ports: ["8082:8080"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      USE_AZURE_SERVICE_BUS: "false"
+  inventory-svc:
+    build:
+      context: .
+      dockerfile: src/inventory-svc/Dockerfile
+    ports: ["8083:8080"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      USE_AZURE_SERVICE_BUS: "false"
+  payment-svc:
+    build:
+      context: .
+      dockerfile: src/payment-svc/Dockerfile
+    ports: ["8084:8080"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      USE_AZURE_SERVICE_BUS: "false"
+  notify-svc:
+    build:
+      context: .
+      dockerfile: src/notify-svc/Dockerfile
+    ports: ["8085:8080"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      USE_AZURE_SERVICE_BUS: "false"
