@@ -47,7 +47,7 @@ jobs:
       - name: Build & Push ${{ matrix.service.name }}
         run: |
           IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service.name }}:${{ github.sha }}"
-          docker build -t "$IMAGE" -f "${{ matrix.service.dockerfile }}" .
+          docker build -t $IMAGE -f "${{ matrix.service.folder }}/Dockerfile" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
