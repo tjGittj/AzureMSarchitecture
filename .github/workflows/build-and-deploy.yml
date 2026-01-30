@@ -11,7 +11,7 @@ on:
 env:
   AZURE_RESOURCE_GROUP: rg-micro-dev
   AZURE_REGION: southindia
-  ACR_NAME: REPLACE_WITH_ACR
+  ACR_NAME: tijomsacr
 
 jobs:
   build_deploy:
