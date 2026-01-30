@@ -8,6 +8,7 @@
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.18.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.14.0" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.14.0" />
     <!-- Remove these if you don't need to pin them explicitly:
          OpenTelemetry.Instrumentation.AspNetCore
          OpenTelemetry.Instrumentation.Http
