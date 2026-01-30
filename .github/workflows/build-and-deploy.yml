@@ -20,9 +20,9 @@ jobs:
       matrix:
         service:
           - { name: "user-svc",      folder: "src/user-svc",      dockerfile: "src/user-svc/Dockerfile",      app: "app-user-dev" }
-          - { name: "order-svc",     folder: "src/order-svc",     dockerfile: "src/order-svc/Dockerfile",     app: "app-order-dev" }
+          - { name: "order-svc",     folder: "src/order-svc",     dockerfile: "src/order-svc/Dockerfile",     app: "app-order-dev-tvs" }
           - { name: "inventory-svc", folder: "src/inventory-svc", dockerfile: "src/inventory-svc/Dockerfile", app: "app-inventory-dev" }
-          - { name: "payment-svc",   folder: "src/payment-svc",   dockerfile: "src/payment-svc/Dockerfile",   app: "app-payment-dev" }
+          - { name: "payment-svc",   folder: "src/payment-svc",   dockerfile: "src/payment-svc/Dockerfile",   app: "app-payment-dev-tvs" }
           - { name: "notify-svc",    folder: "src/notify-svc",    dockerfile: "src/notify-svc/Dockerfile",    app: "app-notify-dev" }
 
     permissions:
