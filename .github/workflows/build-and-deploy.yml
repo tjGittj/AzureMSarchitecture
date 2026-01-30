@@ -39,10 +39,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: ACR Login
-        uses: azure/docker-login@v2
-        with:
-          login-server: ${{ env.ACR_NAME }}.azurecr.io
+      - name: Login to ACR (OIDC)
+        run: |
+          az acr login --name $ACR_NAME
 
       - name: Build & Push ${{ matrix.service.name }}
         run: |
