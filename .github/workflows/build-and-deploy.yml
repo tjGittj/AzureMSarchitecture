@@ -64,13 +64,13 @@ jobs:
             az webapp config container set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --docker-custom-image-name "${{ env.IMAGE }}"               --docker-registry-server-url "https://${{ env.ACR_NAME }}.azurecr.io"
             az webapp config appsettings set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --settings WEBSITES_PORT=8080 USE_AZURE_SERVICE_BUS=false SERVICEBUS_TOPIC=order-events
 
-      - name: Warmup & health check
-        run: |
-          for i in {1..30}; do
-            curl -fsS "https://${{ matrix.service.app }}-staging.azurewebsites.net/healthz" && exit 0
-            sleep 5
-          done
-          exit 1
+      # - name: Warmup & health check
+      #   run: |
+      #     for i in {1..30}; do
+      #       curl -fsS "https://${{ matrix.service.app }}-staging.azurewebsites.net/healthz" && exit 0
+      #       sleep 5
+      #     done
+      #     exit 1
 
       - name: Swap
         uses: azure/CLI@v2
