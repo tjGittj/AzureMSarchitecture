@@ -34,4 +34,23 @@ app.MapPost("/orders", async (OrderCreateRequest req, IEventBus bus, IOrderRepos
     return Results.Accepted($"/orders/{req.OrderId}", new { req.OrderId });
 });
 
+
+app.MapGet("/sql-ping", async (IConfiguration cfg) =>
+{
+    var cs = cfg["SQL_CONN_STRING"];
+    try
+    {
+        using var conn = new Microsoft.Data.SqlClient.SqlConnection(cs);
+        await conn.OpenAsync();
+        return Results.Ok("SQL OK");
+    }
+    catch (Exception ex)
+    {
+        // Log the full exception; return a terse message
+        Console.Error.WriteLine(ex.ToString());
+        return Results.Problem("SQL FAILED: " + ex.Message);
+    }
+});
+
+
 app.Run();
