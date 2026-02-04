@@ -12,6 +12,10 @@ builder.Services.AddDefaultTelemetry("order-svc", builder.Configuration);
 builder.Services.AddSingleton<IEventBus>(sp =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
+    
+    var cs = cfg["SERVICEBUS_CONNECTION_STRING"];
+    Console.WriteLine($"RAW=[{cs}] LEN={cs?.Length}");
+
     return bool.TryParse(cfg["USE_AZURE_SERVICE_BUS"], out var useSb) && useSb
         ? new AzureServiceBusEventBus(cfg["SERVICEBUS_CONNECTION_STRING"]!)
         : new InMemoryEventBus();
