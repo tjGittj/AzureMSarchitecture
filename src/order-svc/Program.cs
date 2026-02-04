@@ -5,6 +5,13 @@ using Common.Observability;
 using OrderService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+Console.WriteLine("=== STARTUP ENV CHECK ===");
+Console.WriteLine($"SERVICEBUS_CONNECTION_STRING at startup: [{Environment.GetEnvironmentVariable("SERVICEBUS_CONNECTION_STRING")}]");
+Console.WriteLine($"USE_AZURE_SERVICE_BUS at startup: [{Environment.GetEnvironmentVariable("USE_AZURE_SERVICE_BUS")}]");
+
+
 builder.Services.AddEndpointsApiExplorer().AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddDefaultTelemetry("order-svc", builder.Configuration);
