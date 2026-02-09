@@ -66,9 +66,7 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: >
-            az webapp deployment slot create               --resource-group
-            $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app
-            }}               --slot staging || true
+            az webapp deployment slot create  -resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app}} --slot staging || true
       - name: Enable MI on staging slot + use MI for ACR pulls
         uses: azure/CLI@v2
         with:
@@ -78,8 +76,7 @@ jobs:
             az webapp identity assign --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging
 
             # Tell App Service to use Managed Identity for ACR pulls (avoids admin creds)
-
-            az webapp config set --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging --acr-use-managed-identity true
+            az resource update   --ids /subscriptions/c71a4de2-31bd-475b-a1b5-df42fb98fbdc/resourceGroups/rg-micro-dev/providers/Microsoft.Web/sites/${{ matrix.service.app }}/config/web   --api-version 2022-03-01   --set properties.acrUseManagedIdentityCreds=True
       - name: Configure container on staging
         uses: azure/CLI@v2
         with:
