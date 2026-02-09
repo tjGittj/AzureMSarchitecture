@@ -1,18 +1,16 @@
-
+---
 name: build-and-deploy
-
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
-      - "src/**"
-      - ".github/workflows/**"
-
+      - src/**
+      - .github/workflows/**
 env:
   AZURE_RESOURCE_GROUP: rg-micro-dev
   AZURE_REGION: southindia
   ACR_NAME: tijomsacr
-
 jobs:
   build_deploy:
     runs-on: ubuntu-latest
@@ -20,88 +18,117 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - { name: "user-svc",      folder: "src/user-svc",      dockerfile: "src/user-svc/Dockerfile",      app: "app-user-dev" }
-          - { name: "order-svc",     folder: "src/order-svc",     dockerfile: "src/order-svc/Dockerfile",     app: "app-order-dev-tvs" }
-          - { name: "inventory-svc", folder: "src/inventory-svc", dockerfile: "src/inventory-svc/Dockerfile", app: "app-inventory-dev" }
-          - { name: "payment-svc",   folder: "src/payment-svc",   dockerfile: "src/payment-svc/Dockerfile",   app: "app-payment-dev-tvs" }
-          - { name: "notify-svc",    folder: "src/notify-svc",    dockerfile: "src/notify-svc/Dockerfile",    app: "app-notify-dev" }
-
+          - name: user-svc
+            folder: src/user-svc
+            dockerfile: src/user-svc/Dockerfile
+            app: app-user-dev
+          - name: order-svc
+            folder: src/order-svc
+            dockerfile: src/order-svc/Dockerfile
+            app: app-order-dev-tvs
+          - name: inventory-svc
+            folder: src/inventory-svc
+            dockerfile: src/inventory-svc/Dockerfile
+            app: app-inventory-dev
+          - name: payment-svc
+            folder: src/payment-svc
+            dockerfile: src/payment-svc/Dockerfile
+            app: app-payment-dev-tvs
+          - name: notify-svc
+            folder: src/notify-svc
+            dockerfile: src/notify-svc/Dockerfile
+            app: app-notify-dev
     permissions:
       id-token: write
       contents: read
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Login to ACR (OIDC)
         run: |
           az acr login --name $ACR_NAME
-
       - name: Build & Push ${{ matrix.service.name }}
-        run: |
-          IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service.name }}:${{ github.sha }}"
-          docker build -t $IMAGE -f "${{ matrix.service.folder }}/Dockerfile" .
-          docker push "$IMAGE"
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+        run: >
+          IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service.name }}:${{
+          github.sha }}"
 
+          docker build -t $IMAGE -f "${{ matrix.service.folder }}/Dockerfile" .
+
+          docker push "$IMAGE"
+
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
       - name: Ensure staging slot
         uses: azure/CLI@v2
         with:
-          inlineScript: |
-            az webapp deployment slot create               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging || true
+          inlineScript: >
+            az webapp deployment slot create               --resource-group
+            $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app
+            }}               --slot staging || true
       - name: Enable MI on staging slot + use MI for ACR pulls
         uses: azure/CLI@v2
         with:
-          inlineScript: |
-          # Assign system-assigned identity to the staging slot (idempotent)
+          inlineScript: >
+            # Assign system-assigned identity to the staging slot (idempotent)
+
             az webapp identity assign --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging
-          # Tell App Service to use Managed Identity for ACR pulls (avoids admin creds)
+
+            # Tell App Service to use Managed Identity for ACR pulls (avoids admin creds)
+
             az webapp config set --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging --acr-use-managed-identity true
       - name: Configure container on staging
         uses: azure/CLI@v2
         with:
-          inlineScript: |
-            az webapp config container set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --docker-custom-image-name "${{ env.IMAGE }}"               --docker-registry-server-url "https://${{ env.ACR_NAME }}.azurecr.io"
+          inlineScript: >
+            az webapp config container set               --resource-group
+            $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app
+            }}               --slot
+            staging               --docker-custom-image-name "${{ env.IMAGE
+            }}"               --docker-registry-server-url "https://${{
+            env.ACR_NAME }}.azurecr.io"
+
             az webapp config appsettings set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --settings WEBSITES_PORT=8080 USE_AZURE_SERVICE_BUS=false SERVICEBUS_TOPIC=order-events
       - name: Configure warm-up path & Always On
         uses: azure/CLI@v2
         with:
-          inlineScript: |
+          inlineScript: >
             # Always On helps container stay running
+
             az webapp config set \
               --resource-group $AZURE_RESOURCE_GROUP \
               --name ${{ matrix.service.app }} \
               --always-on true
 
             # Health check path for platform (site-level)
+
             az webapp config set \
               --resource-group $AZURE_RESOURCE_GROUP \
               --name ${{ matrix.service.app }} \
               --health-check-path /healthz
 
             # Warm-up settings on staging slot (so swap pings /healthz, not /)
+
             az webapp config appsettings set \
               --resource-group $AZURE_RESOURCE_GROUP \
               --name ${{ matrix.service.app }} \
               --slot staging \
               --settings WEBSITE_SWAP_WARMUP_PING_PATH=/healthz WEBSITE_SWAP_WARMUP_PING_STATUSES=200-399
       - name: Warmup & health check
-        run: |
+        run: >
           for i in {1..30}; do
             curl -fsS "https://${{ matrix.service.app }}-staging.azurewebsites.net/healthz" && exit 0
             sleep 5
           done
-          exit 1
 
+          exit 1
       - name: Swap
         uses: azure/CLI@v2
         with:
-          inlineScript: |
-            az webapp deployment slot swap               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging --target-slot production
+          inlineScript: >
+            az webapp deployment slot swap               --resource-group
+            $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app
+            }}               --slot staging --target-slot production
