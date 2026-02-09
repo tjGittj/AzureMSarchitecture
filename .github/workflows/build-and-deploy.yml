@@ -56,14 +56,42 @@ jobs:
         with:
           inlineScript: |
             az webapp deployment slot create               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging || true
-
+      - name: Enable MI on staging slot + use MI for ACR pulls
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+          # Assign system-assigned identity to the staging slot (idempotent)
+            az webapp identity assign --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging
+          # Tell App Service to use Managed Identity for ACR pulls (avoids admin creds)
+            az webapp config set --resource-group $AZURE_RESOURCE_GROUP --name ${{ matrix.service.app }} --slot staging --acr-use-managed-identity true
       - name: Configure container on staging
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az webapp config container set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --docker-custom-image-name "${{ env.IMAGE }}"               --docker-registry-server-url "https://${{ env.ACR_NAME }}.azurecr.io"
             az webapp config appsettings set               --resource-group $AZURE_RESOURCE_GROUP               --name ${{ matrix.service.app }}               --slot staging               --settings WEBSITES_PORT=8080 USE_AZURE_SERVICE_BUS=false SERVICEBUS_TOPIC=order-events
+      - name: Configure warm-up path & Always On
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            # Always On helps container stay running
+            az webapp config set \
+              --resource-group $AZURE_RESOURCE_GROUP \
+              --name ${{ matrix.service.app }} \
+              --always-on true
 
+            # Health check path for platform (site-level)
+            az webapp config set \
+              --resource-group $AZURE_RESOURCE_GROUP \
+              --name ${{ matrix.service.app }} \
+              --health-check-path /healthz
+
+            # Warm-up settings on staging slot (so swap pings /healthz, not /)
+            az webapp config appsettings set \
+              --resource-group $AZURE_RESOURCE_GROUP \
+              --name ${{ matrix.service.app }} \
+              --slot staging \
+              --settings WEBSITE_SWAP_WARMUP_PING_PATH=/healthz WEBSITE_SWAP_WARMUP_PING_STATUSES=200-399
       - name: Warmup & health check
         run: |
           for i in {1..30}; do
