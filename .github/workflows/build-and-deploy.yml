@@ -105,7 +105,7 @@ jobs:
             az webapp config set \
               --resource-group $AZURE_RESOURCE_GROUP \
               --name ${{ matrix.service.app }} \
-              --health-check-path /healthz
+              --generic-configurations '{"healthCheckPath":"/healthz"}'
 
             # Warm-up settings on staging slot (so swap pings /healthz, not /)
 
