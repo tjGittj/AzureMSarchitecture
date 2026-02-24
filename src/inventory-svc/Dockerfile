@@ -12,6 +12,8 @@ COPY src/inventory-svc ./src/inventory-svc
 RUN dotnet restore ./src/inventory-svc/InventoryService.csproj
 RUN dotnet publish ./src/inventory-svc/InventoryService.csproj -c Release -o /out
 
+RUN id
+
 FROM base AS final
 WORKDIR /app
 COPY --from=build /out .

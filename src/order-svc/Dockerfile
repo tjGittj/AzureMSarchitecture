@@ -12,6 +12,8 @@ COPY src/order-svc ./src/order-svc
 RUN dotnet restore ./src/order-svc/OrderService.csproj
 RUN dotnet publish ./src/order-svc/OrderService.csproj -c Release -o /out
 
+RUN id
+
 FROM base AS final
 WORKDIR /app
 COPY --from=build /out .
